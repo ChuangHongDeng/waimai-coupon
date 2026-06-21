@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🧧 外卖省钱助手</title>
+<!-- Supabase SDK (CDN, 不下载任何文件) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f5;color:#333;max-width:480px;margin:0 auto;min-height:100vh}
+.header{background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;padding:20px 16px 16px;text-align:center;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.header h1{font-size:22px;margin-bottom:2px}
+.header .sub{font-size:12px;opacity:.85;display:flex;align-items:center;justify-content:center;gap:8px}
+.header .sync-badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;cursor:pointer}
+.sync-badge.local{background:rgba(255,255,255,.25)}
+.sync-badge.cloud{background:#22c55e;color:#fff}
+/* tabs */
+.tabs{display:flex;background:#fff;border-bottom:2px solid #eee;position:sticky;top:88px;z-index:9}
+.tab{flex:1;text-align:center;padding:12px 4px;font-size:14px;font-weight:600;color:#999;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.2s;user-select:none}
+.tab:hover{color:#f97316}
+.tab.active{color:#f97316;border-bottom-color:#f97316}
+/* content */
+.content{padding:16px;padding-bottom:80px}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.card-platform{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#fff}
+.platform-meituan{background:#f97316}.platform-eleme{background:#06f}
+.platform-unionpay{background:#c00}.platform-icbc{background:#c41230}
+.platform-ccb{background:#003d99}.platform-cmb{background:#b00}
+.platform-wechat{background:#07c160}.platform-alipay{background:#1677ff}
+.platform-douban{background:#007722}.platform-smzdm{background:#e31436}
+.card-title{font-size:16px;font-weight:700}
+.card-type{font-size:12px;color:#888;background:#f0f0f0;padding:2px 8px;border-radius:10px}
+.card-desc{font-size:13px;color:#666;margin:6px 0}
+.card-howto{font-size:12px;color:#999;margin:4px 0;padding:8px;background:#fafafa;border-radius:8px;border-left:3px solid #f97316}
+.card-freq{font-size:11px;color:#aaa}
+.card-actions{margin-top:10px;display:flex;gap:8px}
+.btn{padding:8px 16px;border-radius:20px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}
+.btn-primary{background:#f97316;color:#fff}.btn-primary:hover{background:#ea580c}
+.btn-outline{background:#fff;color:#f97316;border:1.5px solid #f97316}.btn-outline:hover{background:#fff7ed}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-green{background:#22c55e;color:#fff}
+.btn-gray{background:#e5e5e5;color:#666}
+/* search */
+.search-bar{position:relative;margin-bottom:16px}
+.search-bar input{width:100%;padding:12px 16px 12px 40px;border-radius:24px;border:2px solid #e5e5e5;font-size:14px;outline:none;transition:.2s}
+.search-bar input:focus{border-color:#f97316}
+.search-bar .search-icon{position:absolute;left:14px;top:12px;font-size:16px;color:#999}
+/* routine */
+.routine-block{margin-bottom:16px}
+.routine-time{font-size:18px;margin-bottom:8px}
+.routine-item{display:flex;align-items:center;padding:10px 12px;background:#fff;border-radius:10px;margin-bottom:6px;box-shadow:0 1px 2px rgba(0,0,0,.05);cursor:pointer;transition:.2s}
+.routine-item:hover{background:#fff7ed;transform:translateX(4px)}
+.routine-item .num{width:28px;height:28px;border-radius:50%;background:#f97316;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:12px;flex-shrink:0}
+.routine-item .text{font-size:14px}
+.routine-item .check{width:32px;height:32px;border-radius:50%;border:2px solid #ddd;margin-left:auto;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:.2s}
+.routine-item .check.done{background:#22c55e;border-color:#22c55e;color:#fff}
+/* stats */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.stat-card{background:#fff;border-radius:12px;padding:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stat-card .value{font-size:28px;font-weight:800;color:#f97316}
+.stat-card .label{font-size:12px;color:#999;margin-top:4px}
+.saving-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px}
+.saving-item .amount{font-weight:700;color:#22c55e}
+/* add saving */
+.add-saving{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.add-saving input{flex:1;min-width:80px;padding:10px 14px;border-radius:10px;border:2px solid #e5e5e5;font-size:14px;outline:none}
+.add-saving input:focus{border-color:#f97316}
+/* settings */
+.settings-section{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.settings-section h3{font-size:15px;margin-bottom:8px}
+.settings-section p{font-size:13px;color:#888;margin-bottom:8px;line-height:1.6}
+.settings-section input, .settings-section select{width:100%;padding:10px 12px;border-radius:8px;border:2px solid #e5e5e5;font-size:14px;margin-bottom:8px;outline:none}
+.settings-section input:focus{border-color:#f97316}
+.code-block{background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;font-size:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;margin:8px 0;line-height:1.5}
+/* toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 24px;border-radius:20px;font-size:14px;z-index:100;animation:fadeInUp .3s}
+@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* bottom nav */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;display:flex;border-top:1px solid #eee;z-index:10;padding:8px 0;padding-bottom:max(8px, env(safe-area-inset-bottom))}
+.nav-item{flex:1;text-align:center;font-size:11px;color:#999;cursor:pointer;user-select:none}
+.nav-item .icon{font-size:22px;display:block;margin-bottom:2px}
+.nav-item.active{color:#f97316}
+.page{display:none}.page.active{display:block}
+.empty{text-align:center;padding:40px 20px;color:#ccc}.empty .icon{font-size:48px;margin-bottom:12px}
+.del-btn{color:#ef4444;cursor:pointer;font-size:12px;margin-left:8px}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:99;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:#fff;width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:24px 16px 32px;max-height:80vh;overflow-y:auto}
+.modal h2{font-size:18px;margin-bottom:16px}
+.modal .close{float:right;font-size:24px;cursor:pointer;line-height:1}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>🧧 外卖省钱助手</h1>
+  <div class="sub">
+    信息聚合 · 手动领取 · 不封号
+    <span class="sync-badge local" id="syncBadge" onclick="switchPage('settings')">💾 本地存储</span>
+  </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="tabs" id="tabs">
+  <div class="tab active" data-page="list">📋 券源</div>
+  <div class="tab" data-page="routine">📅 流程</div>
+  <div class="tab" data-page="track">💰 记录</div>
+  <div class="tab" data-page="settings">⚙️ 设置</div>
+</div>
+
+<!-- Content -->
+<div class="content" id="content">
+
+  <!-- 券源列表 -->
+  <div class="page active" id="page-list">
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="搜索平台、类型、关键词..." oninput="renderList()">
+    </div>
+    <div id="listContainer"></div>
+  </div>
+
+  <!-- 今日流程 -->
+  <div class="page" id="page-routine">
+    <div id="routineContainer"></div>
+  </div>
+
+  <!-- 省钱记录 -->
+  <div class="page" id="page-track">
+    <div class="add-saving">
+      <input type="number" id="savingAmount" placeholder="省了多少钱？" step="0.01" min="0">
+      <input type="text" id="savingNote" placeholder="备注(可选)">
+      <button class="btn btn-primary" onclick="addSaving()">记一笔</button>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div id="savingsList"></div>
+  </div>
+
+  <!-- 设置 -->
+  <div class="page" id="page-settings">
+    <div class="settings-section">
+      <h3>☁️ 云存储设置</h3>
+      <p>配置后数据将存到云端，换手机/换浏览器数据不丢失。不配就默认存在浏览器本地。</p>
+
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">存储方式</label>
+      <select id="storageBackend" onchange="onBackendChange()">
+        <option value="local">💾 本地存储 (浏览器 localStorage)</option>
+        <option value="supabase">☁️ Supabase (免费云数据库，推荐)</option>
+      </select>
+
+      <div id="supabaseConfig" style="display:none;margin-top:12px">
+        <div class="settings-section" style="background:#f0fdf4;border:1px solid #bbf7d0">
+          <h3 style="color:#15803d">🟢 Supabase 免费配置步骤</h3>
+          <p>
+            1. 打开 <a href="https://supabase.com" target="_blank">supabase.com</a> 注册 (GitHub登录即可)<br>
+            2. 创建项目 → 记住数据库密码<br>
+            3. 进入项目 → Settings → API<br>
+            4. 复制 <b>Project URL</b> 和 <b>anon public key</b> 填到下方<br>
+            5. 进入 SQL Editor，粘贴执行下方 SQL 建表：
+          </p>
+          <div class="code-block">-- 创建省钱记录表
+CREATE TABLE savings (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  amount NUMERIC(10,2) NOT NULL,
+  note TEXT DEFAULT '',
+  source_id TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 创建领券记录表
+CREATE TABLE claimed (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  source_id TEXT NOT NULL,
+  claimed_at TIMESTAMPTZ DEFAULT NOW(),
+  note TEXT DEFAULT ''
+);
+
+-- 开启公开访问 (anon key)
+ALTER TABLE savings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE claimed ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "允许公开读写 savings"
+  ON savings FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "允许公开读写 claimed"
+  ON claimed FOR ALL USING (true) WITH CHECK (true);</div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">Project URL</label>
+          <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">Anon Public Key</label>
+          <input type="text" id="supabaseKey" placeholder="eyJhbGciOi...">
+          <button class="btn btn-green btn-sm" onclick="testSupabase()" style="margin-top:8px">🔌 测试连接 & 保存</button>
+          <span id="connectionStatus" style="font-size:13px;margin-left:8px"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section" style="margin-top:12px">
+      <h3>📤 数据管理</h3>
+      <button class="btn btn-outline btn-sm" onclick="exportData()">📥 导出数据 (JSON)</button>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('importFile').click()" style="margin-left:8px">📤 导入数据</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="btn btn-gray btn-sm" onclick="clearAllData()" style="margin-left:8px">🗑 清除所有数据</button>
+    </div>
+
+    <div class="settings-section" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa">
+      <h3 style="color:#f97316">🤔 为什么不能用飞书/Notion？</h3>
+      <p>
+        Notion API 和飞书 API 不允许从浏览器直接调用（CORS限制），必须有个服务器中转。<br><br>
+        <b>Supabase 是最佳免费方案：</b>专为前端设计，CDN引入JS库即可直连数据库，无需任何服务器。<br><br>
+        也可以配合 <b>Cloudflare Workers</b>(免费10万次/天) 做中转代理，就能用飞书/Notion了。
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav" id="bottomNav">
+  <div class="nav-item active" data-page="list"><span class="icon">📋</span>券源</div>
+  <div class="nav-item" data-page="routine"><span class="icon">📅</span>流程</div>
+  <div class="nav-item" data-page="track"><span class="icon">💰</span>记录</div>
+  <div class="nav-item" data-page="settings"><span class="icon">⚙️</span>设置</div>
+</div>
+
+<div id="toast" style="display:none"></div>
+
+<script>
+// ==================== 数据 ====================
+const SOURCES = [
+  {id:"meituan_member",name:"美团会员红包",platform:"美团",type:"会员",desc:"美团会员月卡，通常5元买6张5元券",howto:"美团App → 我的 → 美团会员 → 购买会员红包",freq:"月卡/季卡",link:"https://i.meituan.com/c/Mjk1MDk4MjctNTQ0Lmd6aXAxNTYxNDE4ODk4OTk0NC0tMTIzMzUwMDk0MS0tMi0tMDptb2JpbGU="},
+  {id:"eleme_member",name:"饿了么超级吃货卡",platform:"饿了么",type:"会员",desc:"饿了么会员月卡，每月4张5元券",howto:"饿了么App → 我的 → 超级吃货卡 → 开通",freq:"月卡",link:""},
+  {id:"meituan_daily",name:"美团每日领券",platform:"美团",type:"每日签到",desc:"美团外卖首页天天领券，每日可领1-3次",howto:"美团外卖App首页 → 天天领券 → 领券",freq:"每日",link:""},
+  {id:"eleme_daily",name:"饿了么天天领红包",platform:"饿了么",type:"每日签到",desc:"饿了么首页每日领红包，可膨胀变大",howto:"饿了么App首页 → 领红包 → 膨胀红包",freq:"每日",link:""},
+  {id:"yunshanfu",name:"云闪付外卖券",platform:"银联云闪付",type:"支付优惠",desc:"云闪付App内每周可领外卖满减券",howto:"云闪付App → 首页 → 优惠券 → 外卖",freq:"每周",link:""},
+  {id:"icbc",name:"工商银行外卖券",platform:"工商银行",type:"银行优惠",desc:"工银e生活App，每月可领外卖满减",howto:"工银e生活App → 精选 → 美食 → 外卖券",freq:"每月",link:""},
+  {id:"ccb",name:"建设银行外卖券",platform:"建设银行",type:"银行优惠",desc:"建行生活App外卖券，每日限量",howto:"建行生活App → 外卖 → 领券中心",freq:"每日",link:""},
+  {id:"cmb",name:"招商银行饭票",platform:"招商银行",type:"银行优惠",desc:"掌上生活App，周三5折，每日饭票",howto:"掌上生活App → 饭票 → 外卖",freq:"每周三/每日",link:""},
+  {id:"wechat_mp",name:"微信小程序领券",platform:"微信",type:"小程序",desc:"微信搜索「美团外卖」小程序 → 领券中心",howto:"微信 → 发现 → 小程序 → 搜「美团外卖」→ 券包",freq:"每日",link:""},
+  {id:"smzdm",name:"什么值得买-外卖线报",platform:"什么值得买",type:"线报社区",desc:"值友分享外卖优惠线报",howto:"打开链接浏览线报，按指引领券",freq:"实时",link:"https://www.smzdm.com/fenlei/waibao/"},
+  {id:"douban",name:"豆瓣抠门小组",platform:"豆瓣",type:"社区",desc:"抠门联合会，常分享外卖省钱技巧",howto:"打开链接，搜索「外卖」查看线报",freq:"实时",link:"https://www.douban.com/group/Associate/"},
+  {id:"zfb_hb",name:"支付宝外卖红包",platform:"支付宝",type:"支付优惠",desc:"支付宝首页搜索「外卖」→ 领红包",howto:"支付宝App → 搜索「外卖」→ 天天领红包",freq:"每日",link:""},
+  {id:"mt_yao",name:"美团摇一摇红包",platform:"美团",type:"互动玩法",desc:"美团外卖摇一摇，每天可摇出红包",howto:"美团外卖App → 首页 → 摇一摇",freq:"每日",link:""},
+  {id:"mt_pin",name:"美团拼好饭",platform:"美团",type:"拼单",desc:"拼单价比正常低30%-50%",howto:"美团外卖App → 拼好饭入口 → 选品拼单",freq:"每日",link:""},
+  {id:"elm_pin",name:"饿了么拼团",platform:"饿了么",type:"拼单",desc:"饿了么拼团外卖，价格更低",howto:"饿了么App → 拼团 → 发起/参与拼单",freq:"每日",link:""},
+];
+
+const PLATFORM_CLASS = {
+  "美团":"platform-meituan","饿了么":"platform-eleme",
+  "银联云闪付":"platform-unionpay","工商银行":"platform-icbc",
+  "建设银行":"platform-ccb","招商银行":"platform-cmb",
+  "微信":"platform-wechat","支付宝":"platform-alipay",
+  "豆瓣":"platform-douban","什么值得买":"platform-smzdm"
+};
+
+const DAILY_ROUTINE = [
+  {time:"☀️ 上午",actions:["美团外卖天天领券","饿了么领红包","支付宝搜外卖领红包"]},
+  {time:"🌤️ 中午",actions:["看看拼好饭/拼团有没有想吃的","检查建行生活App外卖券"]},
+  {time:"🌙 下午",actions:["云闪付App检查优惠券","什么值得买逛逛线报"]},
+];
+
+// ==================== Supabase 客户端 ====================
+let supabase = null;
+
+function getSupabase() {
+  if (supabase) return supabase;
+  const backend = localStorage.getItem('waimai_backend') || 'local';
+  if (backend !== 'supabase') return null;
+  const url = localStorage.getItem('waimai_supabase_url');
+  const key = localStorage.getItem('waimai_supabase_key');
+  if (!url || !key) return null;
+  try {
+    supabase = window.supabase.createClient(url, key);
+    return supabase;
+  } catch(e) { return null; }
+}
+
+function getBackendType() {
+  return localStorage.getItem('waimai_backend') || 'local';
+}
+
+function updateSyncBadge() {
+  const badge = document.getElementById('syncBadge');
+  const backend = getBackendType();
+  if (backend === 'supabase' && localStorage.getItem('waimai_supabase_url')) {
+    badge.textContent = '☁️ Supabase';
+    badge.className = 'sync-badge cloud';
+  } else {
+    badge.textContent = '💾 本地存储';
+    badge.className = 'sync-badge local';
+  }
+}
+
+// ==================== 数据操作 (双写) ====================
+async function getSavingsData() {
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      const { data, error } = await sb.from('savings').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        return data.map(r => ({ amount: parseFloat(r.amount), note: r.note||'', date: r.created_at ? r.created_at.slice(0,10) : '', id: r.id }));
+      }
+    } catch(e) { console.log('Supabase 读取失败，回退本地', e); }
+  }
+  // 回退 localStorage
+  try { return JSON.parse(localStorage.getItem('waimai_savings') || '[]'); } catch(e) { return []; }
+}
+
+async function addSavingData(entry) {
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      const { error } = await sb.from('savings').insert({ amount: entry.amount, note: entry.note || '', created_at: new Date().toISOString() });
+      if (!error) return true;
+    } catch(e) { console.log('Supabase 写入失败', e); }
+  }
+  // 回退 localStorage
+  const savings = JSON.parse(localStorage.getItem('waimai_savings') || '[]');
+  savings.push(entry);
+  localStorage.setItem('waimai_savings', JSON.stringify(savings));
+  return true;
+}
+
+async function deleteSavingData(id) {
+  const sb = getSupabase();
+  if (sb && id) {
+    try {
+      await sb.from('savings').delete().eq('id', id);
+      return;
+    } catch(e) { console.log('Supabase 删除失败', e); }
+  }
+  // localStorage 由调用方处理
+}
+
+// ==================== Toast ====================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2000);
+}
+
+// ==================== 导航 ====================
+function switchPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll(`[data-page="${name}"]`).forEach(el => el.classList.add('active'));
+  if (name === 'routine') renderRoutine();
+  if (name === 'track') renderTrack();
+  if (name === 'settings') { updateSyncBadge(); onBackendChange(); }
+}
+document.getElementById('tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (tab) switchPage(tab.dataset.page);
+});
+document.getElementById('bottomNav').addEventListener('click', e => {
+  const item = e.target.closest('.nav-item');
+  if (item) switchPage(item.dataset.page);
+});
+
+// ==================== 券源列表 ====================
+function renderList() {
+  const container = document.getElementById('listContainer');
+  const kw = (document.getElementById('searchInput').value || '').toLowerCase();
+  let sources = SOURCES;
+  if (kw) {
+    sources = SOURCES.filter(s =>
+      s.name.toLowerCase().includes(kw) || s.platform.toLowerCase().includes(kw) ||
+      s.type.toLowerCase().includes(kw) || s.desc.toLowerCase().includes(kw)
+    );
+  }
+  if (sources.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="icon">🔍</div>没有找到匹配的券源</div>';
+    return;
+  }
+  const groups = {};
+  sources.forEach(s => {
+    if (!groups[s.platform]) groups[s.platform] = [];
+    groups[s.platform].push(s);
+  });
+  let html = '';
+  for (const [platform, items] of Object.entries(groups)) {
+    const cls = PLATFORM_CLASS[platform] || 'platform-meituan';
+    html += `<div style="margin-bottom:16px"><div style="font-weight:700;font-size:15px;margin-bottom:8px">📱 ${platform}</div>`;
+    items.forEach(s => {
+      html += `
+      <div class="card">
+        <div class="card-header"><span class="card-platform ${cls}">${s.platform}</span><span class="card-type">${s.type}</span></div>
+        <div class="card-title">${s.name}</div>
+        <div class="card-desc">${s.desc}</div>
+        <div class="card-howto">👉 ${s.howto}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <span class="card-freq">⏱ ${s.freq}</span>
+          ${s.link ? `<button class="btn btn-primary btn-sm" onclick="openLink('${s.id}','${s.link.replace(/'/g,"\\'")}')">🔗 打开链接</button>` : ''}
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function openLink(id, link) {
+  window.open(link, '_blank');
+  showToast('已打开链接 ✅');
+}
+
+// ==================== 今日流程 ====================
+function renderRoutine() {
+  const container = document.getElementById('routineContainer');
+  const checks = getRoutineChecks();
+  const now = new Date();
+  const weekday = now.getDay();
+  const dayOfMonth = now.getDate();
+  const dateStr = now.toISOString().slice(0,10);
+  let routine = [...DAILY_ROUTINE];
+  if (weekday === 3) routine.push({time:"🎯 周三专属",actions:["招商银行掌上生活【周三5折】"]});
+  if (dayOfMonth <= 7) routine.push({time:"🔄 月初必做",actions:["续费美团/饿了么会员","工银e生活领月券"]});
+  let html = `<div style="font-size:14px;color:#888;margin-bottom:12px">📅 ${dateStr} · 周${['日','一','二','三','四','五','六'][weekday]}</div>`;
+  let globalIdx = 0;
+  routine.forEach(block => {
+    html += `<div class="routine-block"><div class="routine-time">${block.time}</div>`;
+    block.actions.forEach(action => {
+      const done = checks[globalIdx];
+      html += `
+      <div class="routine-item">
+        <span class="num">${globalIdx+1}</span>
+        <span class="text" style="${done ? 'text-decoration:line-through;color:#ccc' : ''}">${action}</span>
+        <span class="check ${done ? 'done' : ''}" onclick="toggleRoutineCheck(${globalIdx})">${done ? '✓' : ''}</span>
+      </div>`;
+      globalIdx++;
+    });
+    html += '</div>';
+  });
+  html += `<div style="background:#fff7ed;border-radius:10px;padding:12px;margin-top:16px;font-size:13px;color:#f97316;text-align:center">🛡️ 以上全部手动操作App，不封号！点右侧圆圈标记完成</div>`;
+  container.innerHTML = html;
+}
+
+function getRoutineChecks() {
+  const today = new Date().toISOString().slice(0,10);
+  try { const d = JSON.parse(localStorage.getItem('waimai_routine')||'{}'); return d[today]||{}; } catch(e) { return {}; }
+}
+function toggleRoutineCheck(idx) {
+  const today = new Date().toISOString().slice(0,10);
+  let data;
+  try { data = JSON.parse(localStorage.getItem('waimai_routine')||'{}'); } catch(e) { data = {}; }
+  if (!data[today]) data[today] = {};
+  data[today][idx] = !data[today][idx];
+  localStorage.setItem('waimai_routine', JSON.stringify(data));
+  renderRoutine();
+}
+
+// ==================== 省钱记录 ====================
+let _cachedSavings = null;
+
+async function renderTrack() {
+  const savings = await getSavingsData();
+  _cachedSavings = savings;
+  const grid = document.getElementById('statsGrid');
+  const list = document.getElementById('savingsList');
+
+  const total = savings.reduce((s, r) => s + r.amount, 0);
+  const now = new Date();
+  const monthAgo = new Date(now - 30*86400000).toISOString().slice(0,10);
+  const weekAgo = new Date(now - 7*86400000).toISOString().slice(0,10);
+  const mSav = savings.filter(r => r.date >= monthAgo);
+  const wSav = savings.filter(r => r.date >= weekAgo);
+  const mTotal = mSav.reduce((s, r) => s + r.amount, 0);
+  const wTotal = wSav.reduce((s, r) => s + r.amount, 0);
+
+  grid.innerHTML = `
+    <div class="stat-card"><div class="value">¥${total.toFixed(0)}</div><div class="label">累计节省 (${savings.length}笔)</div></div>
+    <div class="stat-card"><div class="value">¥${mTotal.toFixed(0)}</div><div class="label">近30天</div></div>
+    <div class="stat-card"><div class="value">¥${wTotal.toFixed(0)}</div><div class="label">近7天</div></div>
+    <div class="stat-card"><div class="value">¥${(mTotal/30).toFixed(1)}</div><div class="label">日均节省</div></div>
+  `;
+
+  if (savings.length === 0) {
+    list.innerHTML = '<div class="empty"><div class="icon">📝</div>还没有记录，开始记一笔吧！</div>';
+    return;
+  }
+  let html = '<div style="font-weight:700;margin-bottom:8px">📋 记录</div>';
+  savings.slice(0, 30).forEach((r, i) => {
+    html += `
+    <div class="saving-item">
+      <span>${r.date} ${r.note||'外卖省钱'}</span>
+      <span class="amount">+¥${r.amount.toFixed(2)} <span class="del-btn" onclick="delSaving(${i},${r.id||0})">删除</span></span>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+async function addSaving() {
+  const amtEl = document.getElementById('savingAmount');
+  const noteEl = document.getElementById('savingNote');
+  const amt = parseFloat(amtEl.value);
+  if (isNaN(amt) || amt <= 0) { showToast('请输入有效金额'); return; }
+  const entry = { amount: amt, note: noteEl.value.trim(), date: new Date().toISOString().slice(0,10) };
+  await addSavingData(entry);
+  amtEl.value = '';
+  noteEl.value = '';
+  await renderTrack();
+  showToast(`已记录节省 ¥${amt.toFixed(2)} 🎉`);
+}
+
+async function delSaving(idx, id) {
+  if (id) await deleteSavingData(id);
+  else {
+    // localStorage mode
+    const savings = JSON.parse(localStorage.getItem('waimai_savings')||'[]');
+    savings.splice(idx, 1);
+    localStorage.setItem('waimai_savings', JSON.stringify(savings));
+  }
+  await renderTrack();
+  showToast('已删除');
+}
+
+// ==================== 设置 ====================
+function onBackendChange() {
+  const backend = document.getElementById('storageBackend').value;
+  document.getElementById('supabaseConfig').style.display = backend === 'supabase' ? 'block' : 'none';
+
+  // 回填已保存的值
+  if (backend === 'supabase') {
+    document.getElementById('supabaseUrl').value = localStorage.getItem('waimai_supabase_url') || '';
+    document.getElementById('supabaseKey').value = localStorage.getItem('waimai_supabase_key') || '';
+  }
+  updateSyncBadge();
+}
+
+async function testSupabase() {
+  const url = document.getElementById('supabaseUrl').value.trim();
+  const key = document.getElementById('supabaseKey').value.trim();
+  const statusEl = document.getElementById('connectionStatus');
+
+  if (!url || !key) { statusEl.textContent = '❌ 请填写完整'; statusEl.style.color = '#ef4444'; return; }
+
+  statusEl.textContent = '⏳ 测试中...';
+  statusEl.style.color = '#f97316';
+
+  try {
+    const sb = window.supabase.createClient(url, key);
+    const { error } = await sb.from('savings').select('count', { count: 'exact', head: true });
+    if (error) throw error;
+
+    localStorage.setItem('waimai_backend', 'supabase');
+    localStorage.setItem('waimai_supabase_url', url);
+    localStorage.setItem('waimai_supabase_key', key);
+    supabase = sb;
+
+    statusEl.textContent = '✅ 连接成功！数据将存到 Supabase';
+    statusEl.style.color = '#22c55e';
+    updateSyncBadge();
+    showToast('☁️ 已切换到 Supabase 云存储');
+  } catch(e) {
+    statusEl.textContent = '❌ 连接失败: ' + (e.message || e);
+    statusEl.style.color = '#ef4444';
+  }
+}
+
+function exportData() {
+  const data = {
+    savings: JSON.parse(localStorage.getItem('waimai_savings') || '[]'),
+    routine: JSON.parse(localStorage.getItem('waimai_routine') || '{}'),
+    backend: localStorage.getItem('waimai_backend') || 'local',
+    exported_at: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'waimai-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  showToast('数据已导出 ✅');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.savings) localStorage.setItem('waimai_savings', JSON.stringify(data.savings));
+      if (data.routine) localStorage.setItem('waimai_routine', JSON.stringify(data.routine));
+      if (data.backend) localStorage.setItem('waimai_backend', data.backend);
+      showToast('数据已导入 ✅');
+      renderTrack();
+    } catch(err) { showToast('文件格式错误 ❌'); }
+  };
+  reader.readAsText(file);
+}
+
+function clearAllData() {
+  if (!confirm('确定要清除所有数据吗？此操作不可恢复！')) return;
+  localStorage.removeItem('waimai_savings');
+  localStorage.removeItem('waimai_routine');
+  localStorage.removeItem('waimai_backend');
+  localStorage.removeItem('waimai_supabase_url');
+  localStorage.removeItem('waimai_supabase_key');
+  supabase = null;
+  updateSyncBadge();
+  renderTrack();
+  showToast('数据已清除');
+}
+
+// ==================== 初始化 ====================
+renderList();
+renderRoutine();
+renderTrack();
+updateSyncBadge();
+onBackendChange();
+</script>
+</body>
+</html>
